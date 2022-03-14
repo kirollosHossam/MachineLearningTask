@@ -34,23 +34,24 @@ def get_status():
     status = trainer.get_status()
     return StatusObject(**status)
 
-@app.get("/trainMachineLearning", summary="Train a new model")
+@app.get("/trainMachineLearning", summary="Train a new Machine Learning model")
 def train():
     try:
-        trainer.trainMachineLearning(training_data.texts, training_data.labels)
+        trainer.trainMachineLearning(trainer.merge().text, trainer.merge().dialect)
         status = trainer.get_status()
         return StatusObject(**status)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
-@app.get("/trainDeepLearning", summary="Train a new model")
+@app.get("/trainDeepLearning", summary="Train a new Deep Learning model")
 def train():
     try:
-        trainer.trainDeepLearning(training_data.texts, training_data.labels)
+        trainer.trainDeepLearning(trainer.merge().text, trainer.merge().dialect)
         status = trainer.get_status()
         return StatusObject(**status)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+
 @app.post("/predict", summary="Predict single input")
 def predict(query_text: QueryText):
     try:
@@ -66,7 +67,6 @@ def predict_batch(testing_data:TestingData):
         return PredictionsObject(predictions=predictions)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
-
 
 @app.get("/")
 def home():
