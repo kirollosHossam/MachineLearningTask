@@ -1,32 +1,53 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
 import pandas as pd
 import requests
 import re
+import aiohttp
+import asyncio
+import nest_asyncio
+from joblib import logger
 
-def sara(id):
-    url = 'https://recruitment.aimtechnologies.co/ai-tasks'
-    myobj = str(id)
-    x = requests.post(url, json=[myobj]).json()[myobj]
-    print("***********")
-    x = re.sub(r'[^\sء-ي]', '', x).split(' ')
-    without_empty_strings = [string for string in x if string != ""]
-    return without_empty_strings
+nest_asyncio.apply()
 
 def preprocessing():
 
-     data =pd.read_csv("dialect_dataset.csv")
-     print(data.shape)
-     data['words']= data['id'].apply(sara)
+     data =pd.read_csv("data/external/dialect_dataset.csv")
+     n = int(data.shape[0]/1000)  # chunk row size
+     list_df = [data[i:i + n] for i in range(0, data.shape[0], n)]
+     # print(data.shape)
+     print(len(list_df))
+     return list_df
 
 
+async def main(df):
+    x=0
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for index, row in df.iterrows():
+            task = asyncio.ensure_future(get_data(session, row['id']))
+            tasks.append(task)
+            print(x)
+            x+=1
+        return_data = await asyncio.gather(*tasks)
+    return return_data
 
+async def get_data(session, id):
+    url = 'https://recruitment.aimtechnologies.co/ai-tasks'
+    myobj = str(id)
+    async with session.post(url, json=[myobj]) as response:
+        try:
+          result_data = (await response.json())[myobj]
+        except requests.Timeout as err:
+          logger.error({"message": err.message})
+        # print(result_data)
+        result =  re.sub(r'[^\sء-ي]', '', str(result_data))
+        return result
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    preprocessing()
+def begin():
+  list_of_df=preprocessing()
+  for i in range(len(list_of_df)):
+    output=asyncio.run(main(list_of_df[i]))
+    list_of_df[i]["text"]=output
+    list_of_df[i].to_csv(r'data/processed/processed{}.csv'.format(i), index=False)
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+if __name__== "__main__":
+  begin()
